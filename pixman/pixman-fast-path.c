@@ -624,6 +624,8 @@ fast_composite_over_8888_8888 (pixman_implementation_t *imp,
     }
 }
 
+typedef uint32_t uint32x4 __attribute__((vector_size (16)));
+
 static void
 fast_composite_src_x888_8888 (pixman_implementation_t *imp,
 			      pixman_composite_info_t *info)
@@ -631,8 +633,9 @@ fast_composite_src_x888_8888 (pixman_implementation_t *imp,
     PIXMAN_COMPOSITE_ARGS (info);
     uint32_t    *dst_line, *dst;
     uint32_t    *src_line, *src;
+    uint32x4    *vsrc, *vdst;
     int dst_stride, src_stride;
-    int32_t w;
+    int32_t w, vw;
 
     PIXMAN_IMAGE_GET_LINE (dest_image, dest_x, dest_y, uint32_t, dst_stride, dst_line, 1);
     PIXMAN_IMAGE_GET_LINE (src_image, src_x, src_y, uint32_t, src_stride, src_line, 1);
@@ -643,7 +646,17 @@ fast_composite_src_x888_8888 (pixman_implementation_t *imp,
 	dst_line += dst_stride;
 	src = src_line;
 	src_line += src_stride;
-	w = width;
+
+	vsrc = (uint32x4 *)src;
+	vdst = (uint32x4 *)dst;
+	vw = width / 4;
+
+	while (vw--)
+	    *vdst++ = (*vsrc++) | 0xff000000;
+
+	src = (uint32_t *)vsrc;
+	dst = (uint32_t *)vdst;
+	w = width % 4;
 
 	while (w--)
 	    *dst++ = (*src++) | 0xff000000;
